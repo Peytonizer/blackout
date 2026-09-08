@@ -196,5 +196,9 @@ Notable changes to Blackout, newest first.
   upload, so the single-file build is downloadable straight from the live site at
   `blackout.noradz.io/blackout.html`. Test failure blocks the deploy; only one Pages
   deployment runs at a time, a newer push winning rather than queuing. Repo's Pages source set
-  to "GitHub Actions" via the API to match. From this commit, a push to `main` is a deploy.
-  The `blackout.noradz.io` DNS record is outside this repo and wasn't set up in this session.
+  to "GitHub Actions" and its custom domain to `blackout.noradz.io`, both via the API. From
+  this commit, a push to `main` is a deploy — verified live at
+  [peytonizer.github.io/blackout](https://peytonizer.github.io/blackout/) (both `/` and
+  `/blackout.html` serving). The DNS record pointing `blackout.noradz.io` at
+  `peytonizer.github.io` is outside this repo and wasn't set up in this session; HTTPS
+  enforcement on the custom domain stays off until GitHub can verify it.
