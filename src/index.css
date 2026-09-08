@@ -1,0 +1,27 @@
+/*
+ * Fonts are self-hosted via @fontsource — never a <link> to fonts.googleapis.com. The CSP's
+ * `connect-src 'none'` would block that fetch at runtime and the page would fall back to
+ * system fonts with no visible error, which is worse than the extra install step. Only the
+ * weights actually used are imported, since every one of these ends up base64-inlined in the
+ * single-file build.
+ */
+@import '@fontsource-variable/space-grotesk/wght.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark; /* Blackout is dark-only; there is no light theme to fall back to. */
+}
+
+body {
+  margin: 0;
+  @apply bg-bg text-text font-sans;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
