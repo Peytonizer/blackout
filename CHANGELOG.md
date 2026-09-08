@@ -134,3 +134,20 @@ Notable changes to Blackout, newest first.
   session, not a code defect — the redaction pixel logic this export reuses unchanged
   (`core/redact.js`, via the same `renderPageBlob` path) was already verified byte-for-byte at
   stage 4, and is exercised identically here.
+- Build-order stage 9: the export contract. `ExportPanel` states, plainly, before a PDF export
+  runs: the file is rebuilt as images and grows, selectable text is lost (only shown when the
+  source actually has a text layer to lose), an encrypted source's exported copy won't be
+  (only shown when the source needed a password), and there's no undo — matching SPEC.md's
+  decisions table exactly. Requires a deliberate "Export anyway" click before the irreversible
+  export runs. An image export has none of these costs (same pixels, PNG out, nothing lost) and
+  proceeds directly, exactly as it always has — the panel never appears for one. README already
+  described this contract accurately (written aspirationally at stage 1); reviewed, no changes
+  needed.
+
+  Verified in a real browser: an image export produces a valid PNG with no panel shown, exactly
+  as before. The PDF path (panel content, confirm/cancel) could not be exercised live —
+  `page.render()` remained hung for the rest of this session, the same browser-environment
+  issue noted at stage 8, confirmed still present after closing tabs and a dev-server restart.
+  `ExportPanel` follows the identical modal pattern `PdfPasswordPrompt` already uses
+  successfully (stage 6), and its logic is plain conditional rendering off already-verified
+  `doc.inspection.hasTextLayer` and `wasEncrypted` values.

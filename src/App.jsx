@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import Dropzone from './components/Dropzone'
+import ExportPanel from './components/ExportPanel'
 import Footer from './components/Footer'
 import Header from './components/Header'
 import MarkLayer from './components/MarkLayer'
@@ -14,9 +15,10 @@ import { useDocument } from './state/useDocument.js'
 import { usePageViewport } from './state/usePageViewport.js'
 
 /**
- * The application shell. Build-order stage 8: PDF export — every page rebuilt into a brand-new
- * document via pdf-lib, never copied from the source. The pre-export warning contract (stage
- * 9: selectable text lost, file grows, no undo) lands next.
+ * The application shell. Build-order stage 9: the export contract — before a PDF export runs,
+ * ExportPanel states its real costs (file grows, selectable text lost, an encrypted source
+ * exports unencrypted, no undo) and requires a deliberate confirmation. An image export has
+ * none of those costs (same pixels, PNG out, nothing lost) and runs directly, as it always has.
  */
 function App() {
   const {
@@ -26,6 +28,7 @@ function App() {
     getRaster,
     dpi,
     setDpi,
+    wasEncrypted,
     passwordRequest,
     submitPassword,
     cancelPassword,
@@ -52,21 +55,29 @@ function App() {
   // document state — it's an export preference, and there's nothing wrong with it persisting
   // as a "last choice" convenience across loading a different file.
   const [pdfCodec, setPdfCodec] = useState('jpeg')
+  // Whether ExportPanel's confirmation is currently open, for a PDF export awaiting the user's
+  // go-ahead. An image export has nothing to confirm and never sets this.
+  const [pendingExport, setPendingExport] = useState(false)
 
   // Full-resolution redacted export, from the raster ref map — never from PageCanvas's scaled
   // preview canvas (SPEC.md). A PDF is rebuilt whole (every page, via exportPdf.js) rather than
   // exporting just the page currently in view.
+  const runExport = async () => {
+    if (doc.kind === 'pdf') {
+      // Dynamically imported so pdf-lib never reaches someone who only exports images.
+      const { exportPdf } = await import('./export/exportPdf.js')
+      const bytes = await exportPdf(doc.pages, getRaster, pdfCodec)
+      downloadBlob(new Blob([bytes], { type: 'application/pdf' }), redactedFilename(doc.filename, 'pdf'))
+    } else {
+      const blob = await exportImage(getRaster(page.id), page.marks, page.width, page.height)
+      downloadBlob(blob, redactedFilename(doc.filename))
+    }
+  }
+
   const handleExport = page
-    ? async () => {
-        if (doc.kind === 'pdf') {
-          // Dynamically imported so pdf-lib never reaches someone who only exports images.
-          const { exportPdf } = await import('./export/exportPdf.js')
-          const bytes = await exportPdf(doc.pages, getRaster, pdfCodec)
-          downloadBlob(new Blob([bytes], { type: 'application/pdf' }), redactedFilename(doc.filename, 'pdf'))
-        } else {
-          const blob = await exportImage(getRaster(page.id), page.marks, page.width, page.height)
-          downloadBlob(blob, redactedFilename(doc.filename))
-        }
+    ? () => {
+        if (doc.kind === 'pdf') setPendingExport(true)
+        else runExport()
       }
     : undefined
 
@@ -122,6 +133,16 @@ function App() {
         </main>
       )}
       <PdfPasswordPrompt request={passwordRequest} onSubmit={submitPassword} onCancel={cancelPassword} />
+      <ExportPanel
+        open={pendingExport}
+        hasTextLayer={!!doc?.inspection.hasTextLayer}
+        wasEncrypted={wasEncrypted}
+        onConfirm={() => {
+          setPendingExport(false)
+          runExport()
+        }}
+        onCancel={() => setPendingExport(false)}
+      />
       <Footer />
     </div>
   )

@@ -49,16 +49,24 @@ export function useDocument() {
   const [metadataFindings, setMetadataFindings] = useState([])
   const [attachmentCount, setAttachmentCount] = useState(null) // PDF only; null for an image
   const [dpi, setDpi] = useState(150) // SPEC.md's default PDF render DPI
+  // Whether the current document needed a password to open — SPEC.md's export contract
+  // (stage 9) has to warn that the exported copy won't be encrypted, so this has to survive
+  // past the password prompt itself into document state.
+  const [wasEncrypted, setWasEncrypted] = useState(false)
   // A pending password prompt for the PDF currently loading: { incorrect, attempt, resolve }.
   // `resolve` is the resolver loadPdf's onPasswordRequired is waiting on — submitPassword and
   // cancelPassword call it directly rather than this hook re-deriving the retry flow itself.
   const [passwordRequest, setPasswordRequest] = useState(null)
   const rastersRef = useRef(new Map())
+  // Set the moment a password is first requested for the file currently loading — read once
+  // loading finishes (see loadFile) rather than kept as state itself, since a load in progress
+  // shouldn't affect the *previous* document's wasEncrypted value.
+  const encounteredPasswordRef = useRef(false)
 
-  const requestPassword = useCallback(
-    ({ incorrect, attempt }) => new Promise((resolve) => setPasswordRequest({ incorrect, attempt, resolve })),
-    [],
-  )
+  const requestPassword = useCallback(({ incorrect, attempt }) => {
+    encounteredPasswordRef.current = true
+    return new Promise((resolve) => setPasswordRequest({ incorrect, attempt, resolve }))
+  }, [])
   const submitPassword = useCallback((value) => {
     setPasswordRequest((req) => {
       req?.resolve(value)
@@ -75,6 +83,7 @@ export function useDocument() {
   const loadFile = useCallback(
     async (file) => {
       setLoadError(null)
+      encounteredPasswordRef.current = false
       let loadedPages // [{ id, width, height, pdfPointSize, bitmap, annotationCount?, formFieldCount?, hasTextLayer? }]
       let loadedKind
       let findings
@@ -126,6 +135,7 @@ export function useDocument() {
       setSelectedMarkId(null)
       setMetadataFindings(findings)
       setAttachmentCount(loadedAttachmentCount)
+      setWasEncrypted(encounteredPasswordRef.current)
     },
     [dpi, requestPassword],
   )
@@ -208,6 +218,7 @@ export function useDocument() {
     getRaster,
     dpi,
     setDpi,
+    wasEncrypted,
     passwordRequest,
     submitPassword,
     cancelPassword,
