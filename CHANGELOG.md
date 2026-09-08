@@ -151,3 +151,13 @@ Notable changes to Blackout, newest first.
   `ExportPanel` follows the identical modal pattern `PdfPasswordPrompt` already uses
   successfully (stage 6), and its logic is plain conditional rendering off already-verified
   `doc.inspection.hasTextLayer` and `wasEncrypted` values.
+- Verified in a fresh browser session (after a machine reboot) what stages 8 and 9 couldn't
+  finish live: `page.render()` no longer hangs, confirming that was browser resource
+  exhaustion as suspected, not a code defect. A fabricated 2-page PDF, marked and exported
+  through the real UI, came back with both pages intact, the redacted region genuinely
+  destroyed, and every Info field cleared — `Producer` empty and both dates at the epoch,
+  matching SPEC.md's decisions table exactly. (An initial read of the export appeared to show
+  `Producer` and `ModDate` uncleared; that was a false alarm from the verification script
+  itself — `PDFDocument.load()` without `{ updateMetadata: false }` re-stamps those fields on
+  the in-memory copy the moment it's loaded, so inspecting an export needs that option too.
+  The export code was already correct.)
