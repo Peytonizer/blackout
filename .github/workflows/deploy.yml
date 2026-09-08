@@ -1,0 +1,56 @@
+# Builds and deploys Blackout to GitHub Pages on every push to main (SPEC.md build order,
+# stage 11). Once this lands, a push to main is a deploy — see CLAUDE.md's git rules.
+#
+# Uses the modern "deploy from a workflow" Pages method (actions/deploy-pages), not a gh-pages
+# branch, so the repo's Settings -> Pages -> Source must be "GitHub Actions". The `dist` build
+# is the site; the single-file build is also copied in alongside it so blackout.html is
+# downloadable straight from the live site, at <pages-url>/blackout.html.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one Pages deployment at a time; a newer push wins rather than queuing behind an older one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # A push to main deploys — never publish a build whose own test suite doesn't pass.
+      - run: npm test
+      - run: npm run build
+      - run: npm run build:single
+      # The Vite build doesn't know about CNAME (it's not under public/); Pages needs it
+      # alongside index.html in the published artifact to serve the custom domain.
+      - run: cp CNAME dist/CNAME
+      - run: cp dist-single/blackout.html dist/blackout.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

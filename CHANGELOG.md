@@ -190,3 +190,11 @@ Notable changes to Blackout, newest first.
   worker" message and no errors — confirming the fallback path runs and produces the same
   correct output (2 pages, metadata cleared, no leaked text) as the hosted build's real-worker
   path.
+- Build-order stage 11: deploy. `.github/workflows/deploy.yml` (copied from Scrubber's, same
+  shape) builds on every push to `main` via `actions/deploy-pages` — checkout, `npm ci`,
+  `npm test`, both builds, `CNAME` and `dist-single/blackout.html` copied into `dist` before
+  upload, so the single-file build is downloadable straight from the live site at
+  `blackout.noradz.io/blackout.html`. Test failure blocks the deploy; only one Pages
+  deployment runs at a time, a newer push winning rather than queuing. Repo's Pages source set
+  to "GitHub Actions" via the API to match. From this commit, a push to `main` is a deploy.
+  The `blackout.noradz.io` DNS record is outside this repo and wasn't set up in this session.
