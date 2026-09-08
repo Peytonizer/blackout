@@ -6,18 +6,10 @@
 // public tool whose users aren't all on the bleeding edge of browser feature rollout.
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { pdfMeta } from '../inspect/pdfMeta.js'
-
-// The worker is bundled as a module worker rather than pdf.js's default (a classic worker
-// pulled from a CDN or inlined as a blob), so it stays same-origin — the CSP's `script-src
-// 'self'` covers it with no relaxation needed. Created lazily, once, on first use: a plain
-// `import` of this module must not spin up a worker thread for someone who never opens a PDF.
-let workerPort
-function getWorkerPort() {
-  if (!workerPort) {
-    workerPort = new Worker(new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url), { type: 'module' })
-  }
-  return workerPort
-}
+// Resolves to a real module worker in the hosted build and a main-thread fallback in the
+// single-file build — see vite.config.js / vite.config.singlefile.js and
+// src/load/pdfWorker(.singlefile).js for why (build-order stage 10).
+import { setupWorker } from 'pdf-worker-setup'
 
 /**
  * Opens `file` with pdf.js and renders every page to an `ImageBitmap` at `dpi`, the same raster
@@ -41,7 +33,7 @@ export function loadPdf(file, { dpi, onPasswordRequired } = {}) {
   return new Promise((resolve, reject) => {
     ;(async () => {
       try {
-        pdfjsLib.GlobalWorkerOptions.workerPort = getWorkerPort()
+        await setupWorker()
         const data = await file.arrayBuffer()
         const loadingTask = pdfjsLib.getDocument({ data })
 

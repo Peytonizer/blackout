@@ -161,3 +161,32 @@ Notable changes to Blackout, newest first.
   itself — `PDFDocument.load()` without `{ updateMetadata: false }` re-stamps those fields on
   the in-memory copy the moment it's loaded, so inspecting an export needs that option too.
   The export code was already correct.)
+- Build-order stage 10: the single-file build. `vite.config.singlefile.js` produces
+  `dist-single/blackout.html` via `vite-plugin-singlefile`, with `relaxCspForSingleFile`
+  adding `'unsafe-inline'` to `script-src` (the bundle is now an inline `<script>`, not a
+  same-origin file) and `data:` to `font-src` (the self-hosted fonts end up inlined as
+  `data:` `@font-face` URIs once CSS code-splitting is off), and `inlineFavicon` embedding
+  `public/favicon.svg` as a data URI so the build has no dependency on a `public/` file.
+  `connect-src 'none'` is untouched.
+
+  Resolves the hazard flagged when this stage was planned: `vite-plugin-singlefile` only
+  inlines files an HTML tag points at, and the pdf.js worker is loaded at runtime via
+  `new Worker(new URL(...))` — invisible to that — so left alone it survived the build as a
+  second, ~1.2MB file next to `blackout.html`, which a real `Worker` couldn't have loaded from
+  `file://` anyway (no origin to be same-origin *to*). `src/load/pdfWorker.singlefile.js`
+  statically imports the worker bundle's `WorkerMessageHandler` and registers it as
+  `globalThis.pdfjsWorker`, which makes pdf.js skip creating a `Worker` entirely and run the
+  handler on the main thread instead (pdf.js's own documented fallback, deliberately
+  triggered) — genuinely one file, at the cost of PDF parsing blocking the tab in this build
+  only. `src/load/pdfWorker.js` (the hosted build's real-`Worker` implementation) and its
+  `.singlefile.js` counterpart are swapped via a `pdf-worker-setup` resolve alias, one per
+  config, so the real-`Worker` code never appears in the single-file build's module graph at
+  all — no reliance on dead-code elimination to keep it out. No CSP change was needed for the
+  worker specifically. Recorded in SPEC.md's decisions table.
+
+  Verified in a real browser (served over `localhost` via `vite preview`, since this
+  extension's browser automation can't drive a `file://` tab directly): a fabricated 2-page
+  PDF loaded, rendered and exported correctly, console showing pdf.js's own "Setting up fake
+  worker" message and no errors — confirming the fallback path runs and produces the same
+  correct output (2 pages, metadata cleared, no leaked text) as the hosted build's real-worker
+  path.

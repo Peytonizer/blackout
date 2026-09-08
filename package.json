@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:single": "vite build --config vite.config.singlefile.js && mv dist-single/index.html dist-single/blackout.html",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run"
@@ -28,6 +29,7 @@
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.19",
     "vite": "^8.2.2",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^4.1.11"
   }
 }
