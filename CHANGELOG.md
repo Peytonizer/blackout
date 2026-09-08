@@ -28,3 +28,16 @@ Notable changes to Blackout, newest first.
   panning is superseded by this, the app's primary interaction; panning still works via the
   wheel. Delete (toolbar button or Delete/Backspace) removes the selected mark, Clear removes
   every mark on the page, both undoable.
+- Build-order stage 4: destructive image export. `core/redact.js` fills marked regions with
+  opaque black at full raster resolution (never sampled from the scaled preview canvas);
+  `export/exportImage.js` re-encodes to a PNG blob via `OffscreenCanvas` (falling back to a
+  detached `<canvas>`); `export/download.js` triggers the browser download as
+  `<source>-redacted.png`. The Header gains an accent-red Export button once a document is
+  loaded — the one accent-red action outside the mark chrome itself.
+
+  Hand-verified per SPEC.md's testing note: exported a PNG carrying a fabricated `tEXt`
+  metadata chunk, with a mark covering a known region. In the exported bytes, the `tEXt` chunk
+  and its content are completely absent; every sampled pixel inside the marked region reads as
+  solid black; every sampled pixel outside it matches the source exactly. Verified
+  programmatically (byte-scanning the export and reading back pixel values via canvas), not
+  just by eye.

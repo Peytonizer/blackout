@@ -5,13 +5,15 @@ import Header from './components/Header'
 import MarkLayer from './components/MarkLayer'
 import PageCanvas from './components/PageCanvas'
 import Toolbar from './components/Toolbar'
+import { downloadBlob, redactedFilename } from './export/download.js'
+import { exportImage } from './export/exportImage.js'
 import { useDocument } from './state/useDocument.js'
 import { usePageViewport } from './state/usePageViewport.js'
 
 /**
- * The application shell. Build-order stage 3: mark, select, move, resize and delete rectangles
- * on a loaded image, with undo/redo. Multi-page PDFs (stage 6) and export (stages 4/8) land in
- * later stages.
+ * The application shell. Build-order stage 4: destructive image export. Multi-page PDFs
+ * (stage 6) and the pre-export warning contract (stage 9) land in later stages — for a single
+ * image there is nothing to warn about, so Export just runs.
  */
 function App() {
   const {
@@ -35,6 +37,16 @@ function App() {
   // treats that as "no fit possible yet" and falls back to scale 1.
   const viewport = usePageViewport(page?.width ?? 0, page?.height ?? 0)
 
+  // Full-resolution redacted export, from the raster ref map — never from PageCanvas's scaled
+  // preview canvas (SPEC.md). Left undefined while no page is loaded, so Header knows not to
+  // show the Export button at all rather than show it disabled.
+  const handleExport = page
+    ? async () => {
+        const blob = await exportImage(getRaster(page.id), page.marks, page.width, page.height)
+        downloadBlob(blob, redactedFilename(doc.filename))
+      }
+    : undefined
+
   // Delete/Backspace removes the selected mark, alongside Toolbar's delete button.
   useEffect(() => {
     function handleKeyDown(e) {
@@ -49,7 +61,7 @@ function App() {
 
   return (
     <div className="flex min-h-svh flex-col">
-      <Header />
+      <Header onExport={handleExport} />
       {page ? (
         <>
           <Toolbar
