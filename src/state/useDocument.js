@@ -7,6 +7,8 @@ import {
   redo as historyRedo,
   undo as historyUndo,
 } from '../core/history.js'
+import { imageMeta } from '../inspect/imageMeta.js'
+import { buildSummary } from '../inspect/summary.js'
 import { loadImage } from '../load/loadImage.js'
 
 let nextPageId = 0
@@ -40,6 +42,9 @@ export function useDocument() {
   const [history, setHistory] = useState(() => createHistory([]))
   const [selectedMarkId, setSelectedMarkId] = useState(null)
   const [loadError, setLoadError] = useState(null)
+  // Metadata findings are fixed at load time (unlike marks, they never change afterward), so
+  // they live in their own bit of state rather than being recomputed on every render.
+  const [metadataFindings, setMetadataFindings] = useState([])
   const rastersRef = useRef(new Map())
 
   const loadFile = useCallback(async (file) => {
@@ -47,8 +52,12 @@ export function useDocument() {
     let bitmap
     let width
     let height
+    let findings
     try {
-      ;({ bitmap, width, height } = await loadImage(file))
+      // Run together: imageMeta reads its own slice of the file independently of decoding it,
+      // and never rejects on a bad format itself (it just reports nothing found), so only
+      // loadImage's rejection reason ever surfaces here.
+      ;[{ bitmap, width, height }, findings] = await Promise.all([loadImage(file), imageMeta(file)])
     } catch (err) {
       setLoadError(err.message)
       return
@@ -61,6 +70,7 @@ export function useDocument() {
     setPageMeta({ id, width, height, pdfPointSize: null, kind: 'image', filename: file.name })
     setHistory(createHistory([]))
     setSelectedMarkId(null)
+    setMetadataFindings(findings)
   }, [])
 
   const getRaster = useCallback((id) => rastersRef.current.get(id), [])
@@ -77,7 +87,10 @@ export function useDocument() {
         marks: history.present,
       },
     ],
-    inspection: null,
+    inspection: buildSummary(
+      [{ id: pageMeta.id, marks: history.present }],
+      metadataFindings,
+    ),
   }
 
   const addMark = useCallback((rect) => {

@@ -41,3 +41,12 @@ Notable changes to Blackout, newest first.
   solid black; every sampled pixel outside it matches the source exactly. Verified
   programmatically (byte-scanning the export and reading back pixel values via canvas), not
   just by eye.
+- Build-order stage 5: image metadata inspection. `inspect/imageMeta.js` reads the first
+  256 KB of the source file and reports which metadata segments/chunks are present — JPEG APPn
+  markers (EXIF, XMP, ICC, IPTC, comment), including walking the EXIF TIFF/IFD structure for a
+  GPS pointer and an IFD1 thumbnail; PNG ancillary chunks (tEXt/zTXt/iTXt, eXIf, iCCP, tIME);
+  WebP RIFF chunks (EXIF, XMP, ICCP). Presence only, never a value — the file is about to be
+  shared. 19 new unit tests against hand-built marker/chunk byte arrays caught a real bug (an
+  off-by-one in the XMP namespace-prefix length) before it shipped. `inspect/summary.js` merges
+  mark counts and findings into the removal-summary model; `RemovalSummary` shows both,
+  persistently, between the toolbar and the canvas.

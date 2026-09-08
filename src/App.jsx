@@ -4,6 +4,7 @@ import Footer from './components/Footer'
 import Header from './components/Header'
 import MarkLayer from './components/MarkLayer'
 import PageCanvas from './components/PageCanvas'
+import RemovalSummary from './components/RemovalSummary'
 import Toolbar from './components/Toolbar'
 import { downloadBlob, redactedFilename } from './export/download.js'
 import { exportImage } from './export/exportImage.js'
@@ -11,9 +12,9 @@ import { useDocument } from './state/useDocument.js'
 import { usePageViewport } from './state/usePageViewport.js'
 
 /**
- * The application shell. Build-order stage 4: destructive image export. Multi-page PDFs
- * (stage 6) and the pre-export warning contract (stage 9) land in later stages — for a single
- * image there is nothing to warn about, so Export just runs.
+ * The application shell. Build-order stage 5: image metadata inspection, surfaced via
+ * RemovalSummary. Multi-page PDFs (stage 6) and the pre-export warning contract (stage 9) land
+ * in later stages — for a single image there is nothing to warn about, so Export just runs.
  */
 function App() {
   const {
@@ -78,6 +79,7 @@ function App() {
             hasMarks={page.marks.length > 0}
             onClear={clearMarks}
           />
+          <RemovalSummary inspection={doc.inspection} />
           <PageCanvas raster={getRaster(page.id)} naturalWidth={page.width} naturalHeight={page.height} viewport={viewport}>
             <MarkLayer
               marks={page.marks}
