@@ -1,13 +1,14 @@
 /**
- * Derives the export filename from the source's — same base name, a `-redacted` marker, and a
- * forced `.png` extension (SPEC.md's decisions table: image export is always PNG, regardless
- * of the source format). `photo.jpg` -> `photo-redacted.png`; a name with no extension (or a
- * leading dot only, like `.hidden`) is used as-is before the marker is appended.
+ * Derives the export filename from the source's — same base name, a `-redacted` marker, and
+ * `extension` (default `png`: SPEC.md's decisions table says image export is always PNG,
+ * regardless of the source format; PDF export passes `'pdf'`). `photo.jpg` ->
+ * `photo-redacted.png`; a name with no extension (or a leading dot only, like `.hidden`) is
+ * used as-is before the marker is appended.
  */
-export function redactedFilename(sourceFilename) {
+export function redactedFilename(sourceFilename, extension = 'png') {
   const dot = sourceFilename.lastIndexOf('.')
   const base = dot > 0 ? sourceFilename.slice(0, dot) : sourceFilename
-  return `${base}-redacted.png`
+  return `${base}-redacted.${extension}`
 }
 
 /**

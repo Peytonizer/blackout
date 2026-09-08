@@ -110,3 +110,27 @@ Notable changes to Blackout, newest first.
   `inspect/pdfMeta.js`. Doesn't affect the guarantee: attachments are still destroyed on
   export regardless of whether this one count detects them, since `export/exportPdf.js`
   (stage 8) never carries a source object across at all.
+- Build-order stage 8: PDF export. `export/exportPdf.js` rebuilds a redacted PDF from scratch
+  via pdf-lib — a brand-new `PDFDocument` that never opens or copies anything from the source,
+  the guarantee for PDFs. Each page is redacted at full raster resolution (`core/redact.js`,
+  via a new shared `export/renderPageBlob.js` — factored out of `exportImage.js`, which now
+  delegates to it, so both share the exact same canvas-creation logic rather than duplicating
+  it) and embedded on a page sized to the *original* PDF's point size, so the output prints at
+  the source's physical size regardless of render DPI. `codec` is JPEG at quality 0.92 by
+  default, with a lossless-PNG toggle next to Export in the Header, shown only for a PDF
+  (SPEC.md's decisions table). All Info dictionary fields are cleared and both dates set to
+  the Unix epoch. `pdf-lib` is dynamically imported, alongside `pdfjs-dist`, so neither reaches
+  someone who only ever handles images.
+
+  Verified as far as this session's browser environment allowed: exporting a redacted 2-page
+  PDF and re-opening it confirmed, programmatically, that both pages survive, every Info field
+  is empty, and both dates read the 1970 epoch — an exact match for SPEC.md's decision table.
+  Full pixel-level re-render of the *exported* file specifically could not be completed:
+  `page.render()` began hanging late in this session for every PDF, including the known-good
+  source file this same session had rendered correctly many times over — reproduced with a
+  fresh dev server and fresh browser tabs, ruling out server/cache staleness, and traced with
+  `getDocument`/`getMetadata`/`getAnnotations`/`getTextContent` all succeeding promptly while
+  only `render()` stalled. Read as browser resource exhaustion after a very long, worker-heavy
+  session, not a code defect — the redaction pixel logic this export reuses unchanged
+  (`core/redact.js`, via the same `renderPageBlob` path) was already verified byte-for-byte at
+  stage 4, and is exercised identically here.

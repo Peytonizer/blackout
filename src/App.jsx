@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Dropzone from './components/Dropzone'
 import Footer from './components/Footer'
 import Header from './components/Header'
@@ -14,11 +14,9 @@ import { useDocument } from './state/useDocument.js'
 import { usePageViewport } from './state/usePageViewport.js'
 
 /**
- * The application shell. Build-order stage 6: load and view a PDF — a page strip, per-page
- * marks, and a render-DPI choice, alongside everything images already had. PDF export (stage
- * 8) and the pre-export warning contract (stage 9) land in later stages: `exportImage` only
- * makes sense for a single-page image, so Export stays hidden for a PDF until real PDF export
- * exists.
+ * The application shell. Build-order stage 8: PDF export — every page rebuilt into a brand-new
+ * document via pdf-lib, never copied from the source. The pre-export warning contract (stage
+ * 9: selectable text lost, file grows, no undo) lands next.
  */
 function App() {
   const {
@@ -50,16 +48,27 @@ function App() {
   // naturalWidth/Height too, which re-fits the viewport to the newly selected page.
   const viewport = usePageViewport(page?.width ?? 0, page?.height ?? 0)
 
+  // JPEG vs lossless PNG for a PDF's rasterised pages (SPEC.md's decisions table). Not
+  // document state — it's an export preference, and there's nothing wrong with it persisting
+  // as a "last choice" convenience across loading a different file.
+  const [pdfCodec, setPdfCodec] = useState('jpeg')
+
   // Full-resolution redacted export, from the raster ref map — never from PageCanvas's scaled
-  // preview canvas (SPEC.md). Only defined for a single-page image: a PDF's real export
-  // (stage 8) rebuilds every page into one new document, which exportImage can't do.
-  const handleExport =
-    page && doc.kind === 'image'
-      ? async () => {
+  // preview canvas (SPEC.md). A PDF is rebuilt whole (every page, via exportPdf.js) rather than
+  // exporting just the page currently in view.
+  const handleExport = page
+    ? async () => {
+        if (doc.kind === 'pdf') {
+          // Dynamically imported so pdf-lib never reaches someone who only exports images.
+          const { exportPdf } = await import('./export/exportPdf.js')
+          const bytes = await exportPdf(doc.pages, getRaster, pdfCodec)
+          downloadBlob(new Blob([bytes], { type: 'application/pdf' }), redactedFilename(doc.filename, 'pdf'))
+        } else {
           const blob = await exportImage(getRaster(page.id), page.marks, page.width, page.height)
           downloadBlob(blob, redactedFilename(doc.filename))
         }
-      : undefined
+      }
+    : undefined
 
   // Delete/Backspace removes the selected mark, alongside Toolbar's delete button.
   useEffect(() => {
@@ -75,7 +84,7 @@ function App() {
 
   return (
     <div className="flex min-h-svh flex-col">
-      <Header onExport={handleExport} />
+      <Header onExport={handleExport} pdfCodec={doc?.kind === 'pdf' ? pdfCodec : null} onPdfCodecChange={setPdfCodec} />
       {page ? (
         <>
           <Toolbar
