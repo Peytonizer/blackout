@@ -50,3 +50,26 @@ Notable changes to Blackout, newest first.
   off-by-one in the XMP namespace-prefix length) before it shipped. `inspect/summary.js` merges
   mark counts and findings into the removal-summary model; `RemovalSummary` shows both,
   persistently, between the toolbar and the canvas.
+- Build-order stage 6 (render path): load and view an unencrypted PDF. `load/loadPdf.js`
+  renders every page via `pdfjs-dist`, at a chosen DPI (96/150/300, default 150 — SPEC.md's
+  decisions table) picked once before loading, since a PDF page has no natural pixel size the
+  way an image does; that rendered raster then flows through the exact same preview/marks
+  pipeline images already use. The worker is bundled as a same-origin module worker
+  (`pdf.worker.min.mjs`), created lazily on first use, and `pdfjs-dist` itself is only fetched
+  when a PDF is actually opened (dynamic import) rather than growing the bundle for
+  image-only use. Each page's `pdfPointSize` is read from the same rotated viewport used to
+  render, so a rotated source page ends up upright in both.
+
+  `useDocument` now keeps one undo/redo history per page, keyed by page id, rather than
+  assuming a single page — `PageStrip` shows a thumbnail and mark count per page and switches
+  which one is being viewed/marked; `RemovalSummary`'s mark count is a document-wide total
+  across every page. Export stays hidden for a PDF until real PDF export exists (stage 8) —
+  `exportImage` only knows how to encode a single page as a PNG.
+
+  Password-protected PDFs fail fast with a clear message for now; the interactive prompt is
+  the second half of this stage, following SPEC.md's own sequencing note ("land the render
+  path first and commit, then the password path").
+
+  Verified in a real browser with a hand-built two-page PDF: pages render correctly, marks on
+  one page don't leak onto another and survive switching back, and re-loading at 300 DPI
+  produces a raster exactly double the size of the 150 DPI default (72% fit vs 144%).
