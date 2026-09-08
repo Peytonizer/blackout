@@ -1,4 +1,10 @@
-import * as pdfjsLib from 'pdfjs-dist'
+// pdfjs-dist's "legacy" build, not its modern default — the modern build assumes the runtime
+// already has very recent JS built-ins (e.g. Math.sumPrecise, used in its font and XFA-layout
+// code) and crashes outright on a browser without them yet, which was still true of a current
+// Chrome release when this was written. The legacy build carries a small core-js polyfill for
+// exactly that gap, at negligible extra size, and is the deliberately safer choice for a
+// public tool whose users aren't all on the bleeding edge of browser feature rollout.
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 
 // The worker is bundled as a module worker rather than pdf.js's default (a classic worker
 // pulled from a CDN or inlined as a blob), so it stays same-origin — the CSP's `script-src
@@ -7,7 +13,7 @@ import * as pdfjsLib from 'pdfjs-dist'
 let workerPort
 function getWorkerPort() {
   if (!workerPort) {
-    workerPort = new Worker(new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url), { type: 'module' })
+    workerPort = new Worker(new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url), { type: 'module' })
   }
   return workerPort
 }

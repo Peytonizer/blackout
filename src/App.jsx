@@ -5,6 +5,7 @@ import Header from './components/Header'
 import MarkLayer from './components/MarkLayer'
 import PageCanvas from './components/PageCanvas'
 import PageStrip from './components/PageStrip'
+import PdfPasswordPrompt from './components/PdfPasswordPrompt'
 import RemovalSummary from './components/RemovalSummary'
 import Toolbar from './components/Toolbar'
 import { downloadBlob, redactedFilename } from './export/download.js'
@@ -27,6 +28,9 @@ function App() {
     getRaster,
     dpi,
     setDpi,
+    passwordRequest,
+    submitPassword,
+    cancelPassword,
     currentPageIndex,
     selectPage,
     selectedMarkId,
@@ -108,6 +112,7 @@ function App() {
           <Dropzone onFile={loadFile} error={loadError} dpi={dpi} onDpiChange={setDpi} />
         </main>
       )}
+      <PdfPasswordPrompt request={passwordRequest} onSubmit={submitPassword} onCancel={cancelPassword} />
       <Footer />
     </div>
   )

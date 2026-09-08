@@ -48,10 +48,28 @@ export function useDocument() {
   const [loadError, setLoadError] = useState(null)
   const [metadataFindings, setMetadataFindings] = useState([])
   const [dpi, setDpi] = useState(150) // SPEC.md's default PDF render DPI
+  // A pending password prompt for the PDF currently loading: { incorrect, attempt, resolve }.
+  // `resolve` is the resolver loadPdf's onPasswordRequired is waiting on — submitPassword and
+  // cancelPassword call it directly rather than this hook re-deriving the retry flow itself.
+  const [passwordRequest, setPasswordRequest] = useState(null)
   const rastersRef = useRef(new Map())
-  // Password-protected PDFs land next (build-order stage 6's second half) — for now loadPdf
-  // is called with no onPasswordRequired, so one fails fast with a clear message via loadError
-  // instead of the UI hanging on an unresolved prompt.
+
+  const requestPassword = useCallback(
+    ({ incorrect, attempt }) => new Promise((resolve) => setPasswordRequest({ incorrect, attempt, resolve })),
+    [],
+  )
+  const submitPassword = useCallback((value) => {
+    setPasswordRequest((req) => {
+      req?.resolve(value)
+      return null
+    })
+  }, [])
+  const cancelPassword = useCallback(() => {
+    setPasswordRequest((req) => {
+      req?.resolve(null)
+      return null
+    })
+  }, [])
 
   const loadFile = useCallback(
     async (file) => {
@@ -64,7 +82,7 @@ export function useDocument() {
           // Dynamically imported so pdfjs-dist — a large dependency — never reaches someone
           // who only ever loads images; Vite splits it into its own chunk, fetched only here.
           const { loadPdf } = await import('../load/loadPdf.js')
-          const { pages } = await loadPdf(file, { dpi })
+          const { pages } = await loadPdf(file, { dpi, onPasswordRequired: requestPassword })
           loadedPages = pages.map((p) => ({ id: makePageId(), ...p }))
           loadedKind = 'pdf'
           findings = [] // PDF metadata inspection is build-order stage 7
@@ -92,7 +110,7 @@ export function useDocument() {
       setSelectedMarkId(null)
       setMetadataFindings(findings)
     },
-    [dpi],
+    [dpi, requestPassword],
   )
 
   const getRaster = useCallback((id) => rastersRef.current.get(id), [])
@@ -172,6 +190,9 @@ export function useDocument() {
     getRaster,
     dpi,
     setDpi,
+    passwordRequest,
+    submitPassword,
+    cancelPassword,
     currentPageIndex,
     selectPage,
     selectedMarkId,

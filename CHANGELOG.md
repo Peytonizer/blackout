@@ -73,3 +73,21 @@ Notable changes to Blackout, newest first.
   Verified in a real browser with a hand-built two-page PDF: pages render correctly, marks on
   one page don't leak onto another and survive switching back, and re-loading at 300 DPI
   produces a raster exactly double the size of the 150 DPI default (72% fit vs 144%).
+- Build-order stage 6 (password path): the interactive password prompt for an encrypted PDF.
+  `PdfPasswordPrompt` shows a form while `load/loadPdf.js`'s `onPassword` callback waits on it;
+  submitting or cancelling resolves that wait, letting pdf.js's loading task continue or give
+  up. Three wrong attempts fail with a clear message, matching SPEC.md's decision to accept
+  encrypted PDFs rather than reject them outright.
+
+  Found and fixed while testing this against a real encrypted PDF: pdf.js's default ("modern")
+  build calls `Math.sumPrecise` — a JS built-in this session's current Chrome release doesn't
+  have yet — in its font and XFA-layout code, and crashes outright the moment that code path
+  runs (which a real password-protected file's processing reliably hit). Switched to
+  `pdfjs-dist/legacy/build`, which carries a small core-js polyfill for exactly this gap, at a
+  modest bundle-size cost. The deliberately safer choice for a public tool whose users aren't
+  all on the bleeding edge of browser feature rollout.
+
+  Verified in a real browser end to end: the prompt appears for an encrypted PDF built with a
+  real password; a wrong password shows "attempt N of 3" and lets you retry; the correct
+  password unlocks and renders the page; Cancel gives a clear message and returns to the empty
+  state; three wrong attempts in a row gives up with its own clear message, never hanging.
