@@ -91,3 +91,22 @@ Notable changes to Blackout, newest first.
   real password; a wrong password shows "attempt N of 3" and lets you retry; the correct
   password unlocks and renders the page; Cancel gives a clear message and returns to the empty
   state; three wrong attempts in a row gives up with its own clear message, never hanging.
+- Build-order stage 7: PDF metadata inspection. `inspect/pdfMeta.js` reads, from the same open
+  pdf.js document `load/loadPdf.js` already has (no second open, no second password prompt):
+  which Info dictionary fields are present and whether an XMP packet exists, the attachment
+  count, and per page the annotation count, how many of those are form fields (Widget
+  annotations, which pdf.js marks with a `fieldType`), and whether a text layer exists —
+  explaining why the export loses selectable text. `inspect/summary.js` and `RemovalSummary`
+  fold these in alongside the image-only fields from stage 5, only rendering a field when it's
+  actually present so a document with none of them stays uncluttered. 11 new unit tests cover
+  the pure summarising functions.
+
+  Verified in a real browser with a hand-built PDF carrying Info dictionary fields, a text
+  annotation, a form-field widget and real selectable text: every one of those is correctly
+  named and counted, including the singular/plural wording. One field could not be verified as
+  working: `pdf.getAttachments()` returns nothing for an embedded file, confirmed against both
+  a pikepdf-generated attachment and a hand-built one matching pdf.js's own parsing source
+  exactly — a limitation in this pdfjs-dist version's own code, not this app's. Documented in
+  `inspect/pdfMeta.js`. Doesn't affect the guarantee: attachments are still destroyed on
+  export regardless of whether this one count detects them, since `export/exportPdf.js`
+  (stage 8) never carries a source object across at all.

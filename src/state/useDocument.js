@@ -41,12 +41,13 @@ function makeMarkId() {
 export function useDocument() {
   const [kind, setKind] = useState(null)
   const [filename, setFilename] = useState(null)
-  const [pagesMeta, setPagesMeta] = useState([]) // [{ id, width, height, pdfPointSize }]
+  const [pagesMeta, setPagesMeta] = useState([]) // [{ id, width, height, pdfPointSize, annotationCount?, formFieldCount?, hasTextLayer? }]
   const [currentPageIndex, setCurrentPageIndex] = useState(0)
   const [histories, setHistories] = useState({}) // pageId -> history
   const [selectedMarkId, setSelectedMarkId] = useState(null)
   const [loadError, setLoadError] = useState(null)
   const [metadataFindings, setMetadataFindings] = useState([])
+  const [attachmentCount, setAttachmentCount] = useState(null) // PDF only; null for an image
   const [dpi, setDpi] = useState(150) // SPEC.md's default PDF render DPI
   // A pending password prompt for the PDF currently loading: { incorrect, attempt, resolve }.
   // `resolve` is the resolver loadPdf's onPasswordRequired is waiting on — submitPassword and
@@ -74,18 +75,23 @@ export function useDocument() {
   const loadFile = useCallback(
     async (file) => {
       setLoadError(null)
-      let loadedPages // [{ id, width, height, pdfPointSize, bitmap }]
+      let loadedPages // [{ id, width, height, pdfPointSize, bitmap, annotationCount?, formFieldCount?, hasTextLayer? }]
       let loadedKind
       let findings
+      let loadedAttachmentCount = null
       try {
         if (file.type === 'application/pdf') {
           // Dynamically imported so pdfjs-dist — a large dependency — never reaches someone
           // who only ever loads images; Vite splits it into its own chunk, fetched only here.
           const { loadPdf } = await import('../load/loadPdf.js')
-          const { pages } = await loadPdf(file, { dpi, onPasswordRequired: requestPassword })
+          const { pages, metadataFindings, attachmentCount: pdfAttachmentCount } = await loadPdf(file, {
+            dpi,
+            onPasswordRequired: requestPassword,
+          })
           loadedPages = pages.map((p) => ({ id: makePageId(), ...p }))
           loadedKind = 'pdf'
-          findings = [] // PDF metadata inspection is build-order stage 7
+          findings = metadataFindings
+          loadedAttachmentCount = pdfAttachmentCount
         } else {
           const [{ bitmap, width, height }, imgFindings] = await Promise.all([loadImage(file), imageMeta(file)])
           loadedPages = [{ id: makePageId(), width, height, pdfPointSize: null, bitmap }]
@@ -104,11 +110,22 @@ export function useDocument() {
 
       setKind(loadedKind)
       setFilename(file.name)
-      setPagesMeta(loadedPages.map(({ id, width, height, pdfPointSize }) => ({ id, width, height, pdfPointSize })))
+      setPagesMeta(
+        loadedPages.map(({ id, width, height, pdfPointSize, annotationCount, formFieldCount, hasTextLayer }) => ({
+          id,
+          width,
+          height,
+          pdfPointSize,
+          annotationCount,
+          formFieldCount,
+          hasTextLayer,
+        })),
+      )
       setCurrentPageIndex(0)
       setHistories(Object.fromEntries(loadedPages.map((p) => [p.id, createHistory([])])))
       setSelectedMarkId(null)
       setMetadataFindings(findings)
+      setAttachmentCount(loadedAttachmentCount)
     },
     [dpi, requestPassword],
   )
@@ -123,8 +140,9 @@ export function useDocument() {
     filename,
     pages: pagesMeta.map((p) => ({ ...p, marks: histories[p.id]?.present ?? [] })),
     inspection: buildSummary(
-      pagesMeta.map((p) => ({ id: p.id, marks: histories[p.id]?.present ?? [] })),
+      pagesMeta.map((p) => ({ ...p, marks: histories[p.id]?.present ?? [] })),
       metadataFindings,
+      attachmentCount,
     ),
   }
 

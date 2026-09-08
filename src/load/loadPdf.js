@@ -5,6 +5,7 @@
 // exactly that gap, at negligible extra size, and is the deliberately safer choice for a
 // public tool whose users aren't all on the bleeding edge of browser feature rollout.
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { pdfMeta } from '../inspect/pdfMeta.js'
 
 // The worker is bundled as a module worker rather than pdf.js's default (a classic worker
 // pulled from a CDN or inlined as a blob), so it stays same-origin — the CSP's `script-src
@@ -31,6 +32,10 @@ function getWorkerPort() {
  * points, taken from the *same rotated viewport* used to render, so a rotated source page
  * (`/Rotate`) ends up upright in both the raster and the point size. Getting this wrong
  * produces a landscape page rendered into a portrait box.
+ *
+ * Also returns `metadataFindings` and `attachmentCount` (via `inspect/pdfMeta.js`, read off
+ * the same open document before rendering starts), and folds each page's annotation/form-field
+ * counts and text-layer presence into that page's own returned object.
  */
 export function loadPdf(file, { dpi, onPasswordRequired } = {}) {
   return new Promise((resolve, reject) => {
@@ -65,6 +70,11 @@ export function loadPdf(file, { dpi, onPasswordRequired } = {}) {
         }
 
         const pdf = await loadingTask.promise
+        // Read before rendering: getMetadata/getAttachments/getAnnotations/getTextContent are
+        // cheap compared to rendering, and reading them off the same open document rather than
+        // opening the file a second time is what avoids prompting for the password twice.
+        const { findings: metadataFindings, attachmentCount, pages: pageMeta } = await pdfMeta(pdf)
+
         const pages = []
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i)
@@ -86,10 +96,11 @@ export function loadPdf(file, { dpi, onPasswordRequired } = {}) {
             width: bitmap.width,
             height: bitmap.height,
             pdfPointSize: { width: pointViewport.width, height: pointViewport.height },
+            ...pageMeta[i - 1],
           })
         }
 
-        resolve({ pages })
+        resolve({ pages, metadataFindings, attachmentCount })
       } catch (err) {
         reject(err)
       }
