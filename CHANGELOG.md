@@ -202,3 +202,12 @@ Notable changes to Blackout, newest first.
   `/blackout.html` serving). The DNS record pointing `blackout.noradz.io` at
   `peytonizer.github.io` is outside this repo and wasn't set up in this session; HTTPS
   enforcement on the custom domain stays off until GitHub can verify it.
+- Fixed: scroll-wheel zoom (Ctrl/Cmd + wheel, or a trackpad pinch) jumped by a huge amount on
+  a single physical mouse-wheel notch — up to ~170%, because the zoom-toward-cursor factor
+  (`Math.exp(-deltaY * rate)`) used a rate tuned for a trackpad's small continuous deltas
+  against a mouse's much larger single-event deltaY (commonly ~100). Calibrated the rate so a
+  100-unit notch now lands on exactly `ZOOM_STEP` — 10%, matching one Toolbar zoom-button
+  click, down from the previous 25% step — and exported `ZOOM_STEP` from `usePageViewport.js`
+  so `PageCanvas.jsx`'s wheel handler derives from the same constant rather than a second
+  magic number. Verified by dispatching a synthetic 100-unit wheel event and measuring the
+  rendered image's width before and after: 10.0% exactly.

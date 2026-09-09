@@ -1,4 +1,15 @@
 import { useEffect, useRef } from 'react'
+import { ZOOM_STEP } from '../state/usePageViewport.js'
+
+// A physical mouse's scroll wheel reports one notch as a single wheel event with a large
+// deltaY (commonly ~100) — very different from a trackpad pinch, which fires many events with
+// small deltaY as it tracks finger movement continuously. `zoomAt`'s factor is
+// `Math.exp(-deltaY * WHEEL_ZOOM_RATE)`, so calibrating that rate against a 100-unit deltaY
+// landing on exactly `ZOOM_STEP` makes one wheel notch feel like one Toolbar zoom-button click,
+// rather than the much larger jump a small rate constant (tuned for smooth trackpad deltas)
+// produces on a single big notch.
+const WHEEL_NOTCH_DELTA = 100
+const WHEEL_ZOOM_RATE = Math.log(ZOOM_STEP) / WHEEL_NOTCH_DELTA
 
 /**
  * Draws the page raster into a canvas sized to the container, transformed by the shared
@@ -45,7 +56,7 @@ export default function PageCanvas({ raster, naturalWidth, naturalHeight, viewpo
       const rect = el.getBoundingClientRect()
       const point = { x: e.clientX - rect.left, y: e.clientY - rect.top }
       if (e.ctrlKey || e.metaKey) {
-        zoomAt(point, Math.exp(-e.deltaY * 0.01))
+        zoomAt(point, Math.exp(-e.deltaY * WHEEL_ZOOM_RATE))
       } else {
         pan(-e.deltaX, -e.deltaY)
       }

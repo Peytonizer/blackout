@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 const MIN_SCALE = 0.05
 const MAX_SCALE = 20
-const ZOOM_STEP = 1.25
+// One "zoom step" — a Toolbar button click, or (via PageCanvas's WHEEL_ZOOM_RATE, derived from
+// this) one notch of a physical scroll wheel. Exported so both stay the same amount rather than
+// drifting into two different-feeling zoom speeds.
+export const ZOOM_STEP = 1.1
 
 function clampScale(scale) {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale))
