@@ -12,9 +12,6 @@ recover.
 The companion to [Scrubber](https://scrubber.noradz.io), which does the same job for text
 you paste.
 
-> **Status: in development.** The build order is being worked through stage by stage; not
-> everything described below is implemented yet.
-
 ## The guarantee
 
 **Nothing leaves the page.** Blackout is a static site with no backend. It makes no network

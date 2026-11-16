@@ -4,6 +4,11 @@ Notable changes to Blackout, newest first.
 
 ## Unreleased
 
+## 1.0.0 — 2026-11-16
+
+- First release. Every stage of the build order is in. The README's "in development" note is
+  removed.
+
 - Project initiated: specification, build order and instructions written; repository
   scaffolded with its licence, ignore rules, README and changelog.
 - Build-order stage 1: Vite + React + Tailwind + oxlint + vitest scaffold. CSP meta tag with
